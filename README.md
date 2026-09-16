@@ -13,7 +13,7 @@ Simply `pip install pysnid`
 # Templates
 
 This version of pysnid additionally works with the new [Super-SNID](https://github.com/dkjmagill/QUB-SNID-Templates) + the [Gutiérrez](https://arxiv.org/abs/1709.02487) 
-templates. See the [SNID](https://people.lam.fr/blondin.stephane/index.html) webpage for installation instructions.
+templates. See the [SNID](https://people.lam.fr/blondin.stephane/index.html) webpage for installation instructions. Moreover, these templates and the typeinfo file have been updated to recover the type (e.g. Ia) and subtype (e.g. 91bg) as type-subtype (Ia-91bg), for all the types/subtypes included at the template folder.
 
 # Usage
 
