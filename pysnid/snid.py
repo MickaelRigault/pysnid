@@ -141,41 +141,9 @@ class SNIDReader( object ):
     # ============== #
     def set_results(self, results):
         """ """
-        results = results.copy()
-        types = results["type"].str.replace(r"^Ia$","Ia-", regex=True
-                                        ).str.replace(r"^Ib$","Ib-", regex=True
-                                        ).str.replace(r"^IIb$","IIb-", regex=True
-                                        ).str.replace(r"^Ibn$","Ib-n", regex=True
-                                        ).str.replace(r"^Ic$","Ic-", regex=True
-                                        ).str.replace(r"^Icn$","Ic-n", regex=True
-                                        ).str.replace(r"^II$","II-", regex=True
-                                        ).str.replace(r"^IIP$","II-P", regex=True
-                                        ).str.replace(r"^IIn$","II-n", regex=True
-                                        ).str.replace(r"^IIL$","II-L", regex=True
-                                        ).str.replace(r"^IIn-pec$","II-n_pec", regex=True
-                                        ).str.replace(r"^NotSN$","NotSN-", regex=True
-                                        ).str.replace(r"^AGN$","AGN-", regex=True
-                                        ).str.replace(r"^Gal$","Gal-", regex=True
-                                        ).str.replace(r"^QSO$","QSO-", regex=True
-                                        ).str.replace(r"^M-star$","star-M", regex=True
-                                        ).str.replace(r"^C-star$","star-C", regex=True
-                                        ).str.replace(r"^Afterglow$","Afterglow-", regex=True
-                                        ).str.replace(r"^Nova$","Nova-", regex=True
-                                        ).str.replace(r"^CV$","CV-", regex=True
-                                        ).str.replace(r"^SLSN$","SLSN-", regex=True
-                                        ).str.replace(r"^LFBOT$","LFBOT-", regex=True
-                                        ).str.replace(r"^18cow$","18cow-", regex=True
-                                        ).str.replace(r"^20xnd$","20xnd-", regex=True
-                                        ).str.replace(r"^TDE$","TDE-", regex=True
-                                        ).str.replace(r"^KN$","KN-", regex=True
-                                        ).str.replace(r"^17gfo$","17gfo-", regex=True
-                                        ).str.replace(r"^GAP$","GAP-", regex=True
-                                        ).str.replace(r"^LRN$","LRN-", regex=True
-                                        ).str.replace(r"^LBV$","LBV-", regex=True
-                                        ).str.replace(r"^ILRT$","ILRT-", regex=True
-                                        ).str.replace("--","-", regex=True
-                                        )
-        results[["typing","subtyping"]] = types.str.split("-",expand=True).fillna("None")
+        results = results.copy()        
+        types = results["type"]
+        results[["typing", "subtyping"]] = results["type"].str.split("-", n=1, expand=True)
         self._results = results
         
     def set_data(self, data):
@@ -341,9 +309,7 @@ class SNIDReader( object ):
         in details: (typename, p(type)), (subtype, p(subtype | type))
 
         """
-        results = self.get_results(grade=grade, **{**dict(rlap_range=[min_rlap,None]), **kwargs})
-        if nfirst is not None:
-            results = results.iloc[:nfirst]
+        results = self.get_results(grade=grade,nfirst=nfirst, **{**dict(rlap_range=[min_rlap,None]), **kwargs})
 
         rlap_sums = results.groupby(["typing","subtyping"])["rlap"].sum()
         rlap_sums /= rlap_sums.sum()
@@ -356,7 +322,7 @@ class SNIDReader( object ):
             warnings.warn(f"No 'rlap' greater than {min_rlap} ; '{fallback}'  returned")
             best_type, best_typefrac = (fallback, np.nan)
         else:
-            typing_frac = rlap_sums.groupby(level=0).sum() # already a frac
+            typing_frac = rlap_sums.groupby(level=0).sum().sort_values(ascending=False) # already a frac
             if typing_frac.iloc[0] < min_prob: # because stored by ascending=False
                 warnings.warn(f"No 'probabilities' above the {min_prob:.0%} ; '{fallback}' typing returned")
                 best_type, best_typefrac = (fallback, np.nan)
@@ -385,9 +351,7 @@ class SNIDReader( object ):
     def get_typing_result(self, typing="auto", 
                          rlap_range=[5,None], nfirst=30):
         """ """
-        bestres = self.get_results(rlap_range=rlap_range)
-        if nfirst is not None:
-            bestres = bestres.iloc[:30]
+        bestres = self.get_results(rlap_range=rlap_range,nfirst=nfirst)
 
         return bestres
     
@@ -450,7 +414,8 @@ class SNIDReader( object ):
         if axes is None:
             if fig is None:
                 import matplotlib.pyplot as mpl
-                fig = mpl.figure(figsize=[9,3])
+                # fig = mpl.figure(figsize=[9,3])
+                fig = mpl.figure(figsize=[9,5])
                 
             axs = fig.add_axes([0.1,0.18,0.55,0.7])
             #axt = fig.add_axes([0.75,0.1,0.2,0.75], polar=True)
@@ -505,9 +470,9 @@ class SNIDReader( object ):
         from pysnid.tools import make_spiderplot, get_polartwin
 
         logscale = np.atleast_1d(logscale) if logscale is not None else []
-        best_matches = self.get_bestmatches(**{**dict(rlap_range=[min_rlap,None]), **matchprop})
-        if nfirst is not None:
-            best_matches = best_matches.iloc[:nfirst]
+        best_matches = self.get_bestmatches(**{**dict(rlap_range=[min_rlap,None]), **matchprop},nfirst=nfirst)
+        # if nfirst is not None:
+        #     best_matches = best_matches.iloc[:nfirst]
             
         nbest_matchs = len(best_matches)
         if nbest_matchs == 0:
@@ -567,7 +532,8 @@ class SNIDReader( object ):
             ax, axr = axes
             fig = ax.figure
             
-        res = self.get_results(rlap_range=[min_rlap,None], **resprop).iloc[:nfirst]
+        # res = self.get_results(rlap_range=[min_rlap,None], **resprop).iloc[:nfirst]
+        res = self.get_results(rlap_range=[min_rlap,None],nfirst=nfirst, **resprop)
         #
         # - Rankind
         #
@@ -643,7 +609,9 @@ class SNIDReader( object ):
                 propzsource = dict(va="bottom", ha="left", color="0.6", fontsize="x-small")
                 axr.text(minx_axr, redshift, zlabel, **propzsource)
 
-        
+        # axr.set_xlim(phase-7*dphase,phase+7*dphase)
+        axr.set_xlim(np.nanmin(typeres["age"])-3,np.nanmax(typeres["age"])+3)
+
         axr.set_ylabel("Redshift", fontsize="small")
         axr.set_xlabel("Phase", fontsize="small")
         axr.tick_params(labelsize="small")
@@ -651,15 +619,15 @@ class SNIDReader( object ):
     
     def show_bestmatches(self, nbest=None, ax=None, savefile=None, min_rlap=5, matchprop={}, **kwargs):
         """ """
-        best_matches = self.get_bestmatches(**{**dict(rlap_range=[min_rlap,None]), **matchprop})
-        if nbest is not None:
-            best_matches = best_matches.iloc[:nbest]
+        best_matches = self.get_bestmatches(**{**dict(rlap_range=[min_rlap,None]), **matchprop},nfirst=nbest)
+        # if nbest is not None:
+        #     best_matches = best_matches.iloc[:nbest]
         # Limit to those with models.
         best_matches = best_matches[best_matches["no."].astype("int")<self.nmodels]
         models = np.asarray(best_matches["no."], dtype="int")
         
         return self.show_models(models=models, ax=ax, savefile=savefile, **kwargs)
-        
+
     def show_models(self, models=[1], offset_coef=None, ax=None, savefile=None, fluxcorr=True,
                  lw_data=1.5, color_data="0.7", lw_model=1.5, modelprop={},
                  **kwargs):
@@ -688,8 +656,8 @@ class SNIDReader( object ):
         elif offset_coef == "None":
             offset_coef = 0
 
-
         models = np.atleast_1d(models)
+        
         if len(models)==0:
             ax.plot(data_["wavelength"], data_["flux"], 
                     lw=lw_data, color=color_data, **kwargs)
@@ -743,19 +711,41 @@ class SNIDReader( object ):
         return pandas.DataFrame(np.asarray(data, dtype="float"), columns=columns)
         
     @staticmethod
+
     def _read_snidoutput_(filename_, nfirst=None):
-        """ """
-        f = open(filename_).read().split("### rlap-ordered template listings ###")[-1].splitlines()
-        dd = pandas.DataFrame([l.split() for l in f[2:]], columns=f[1][1:].split()).set_index("no.")
-        dd = dd[~dd["age_flag"].isin(["cut"])] # safeout
+        with open(filename_) as file:
+            lines = file.read().split(
+                "### rlap-ordered template listings ###"
+            )[-1].splitlines()
+
+        columns = lines[1].lstrip("#").split()
+
+        rows=[]
+        for line in lines[2:]:
+            if line.lstrip().startswith("#"):
+                break
+            if line.strip():
+                rows.append(line.split())
+
+        dd = pandas.DataFrame(rows, columns=columns).set_index("no.")
+
+        # Remove matches below the SNID rlap cutoff.
+        # dd = dd[dd["grade"] != "cut"]
+
         if nfirst is not None:
             dd = dd.iloc[:nfirst]
-            
-        return dd.astype({**{k:"str" for k in ["sn","type","grade"]},
-                                   **{k:"float" for k in ["lap","rlap","z","zerr","age"]},
-                                     **{k:"bool" for k in ["age_flag"]}}
-                                   )
 
+        return dd.astype({
+            "sn": "str",
+            "type": "str",
+            "grade": "str",
+            "lap": "float",
+            "rlap": "float",
+            "z": "float",
+            "zerr": "float",
+            "age": "float",
+            "age_flag": "int",
+        })
     
     # ============== #
     #  Properties    #
@@ -807,18 +797,19 @@ class SNID( object ):
     def build_snid_command(filename, 
                             forcez=None,
                             lbda_range=[4000,9000], 
-                            phase_range=[-20,50],
+                            phase_range=[-90,1000],
                             redshift_range=[-0.05,0.4],
-                            medlen=20, fwmed=None,
+                            use_sn_template=None,use_sn_type=None,
+                            fwmed=None,
+                            medlen=None,
                             rlapmin=2, 
                             fluxout=30,
+                            emclip=None,emwid=40,
                             skyclip=False, aband=False, inter=False, plot=False,
                             param=None, verbose=True):
         """ """
             
         print("*** build_snid_command ***")
-
-
         
         cmd_snid  = f"snid "
         if param is not None:
@@ -840,7 +831,19 @@ class SNID( object ):
         if phase_range is not None:
             agemin, agemax = phase_range
             cmd_snid += f"agemin={agemin:.0f} agemax={agemax:.0f} "
-            
+        
+        # use of specific templates or types/subtypes
+        if use_sn_template is not None:
+            cmd_snid += f"use={use_sn_template} "
+        if use_sn_type is not None:
+            cmd_snid += f"usetype={use_sn_type} "
+
+        #emclip/emwid
+        if emclip is not None:
+            cmd_snid += f"emclip={emclip} "
+        if emwid is not None:
+            cmd_snid += f"emwid={emwid} "
+
         # Input Spectral Structure
         cmd_snid += f"skyclip={int(skyclip)} " 
         if medlen is not None:
@@ -854,116 +857,126 @@ class SNID( object ):
             print(cmd_snid)
             
         return cmd_snid
-    
+
     def run(self, filename, fileout=None,
-                dirout=None, tmpdir=None,
-                cleanout=True, verbose=False,
-                quiet=False, paramfile=None, in_tmpdir=True,
-                **kwargs):
-        """ run SNID and store the result as a hdf5 file. 
-        
-        **kwargs goes to build_snid_command
-        forcez=None,
-        lbda_range=[4000,8000], 
-        phase_range=[-20,30],
-        redshift_range=[0,0.2],
-        medlen=20, rlapmin=4, 
-        fluxout=30,
-        skyclip=False, aband=False, inter=False, plot=False
-        
-        """
+        dirout=None, tmpdir=None,
+        cleanout=True, verbose=False,
+        quiet=False, paramfile=None, in_tmpdir=True,
+        **kwargs):
+
         import shutil
         from subprocess import PIPE, run
         from glob import glob
-        #
-        basename = os.path.basename(filename)
-        dirname  = os.path.dirname(filename)        
-        #
-        # Create a copy to bypass the SNID filepath limitation
-        
-        if tmpdir is None:
-            tmpdir = f"tmpsnid_{self._snidid}"
-        if not os.path.isdir(tmpdir):
-            os.makedirs(tmpdir, exist_ok=True)
-        if in_tmpdir:
-            old_pwd=os.getcwd()
-            os.chdir(tmpdir)
-            self._tmpfile = f"snid_{self._snidid}_spectofit.ascii"
-        else:
-            old_pwd = None
-            self._tmpfile = os.path.join(tmpdir, f"snid_{self._snidid}_spectofit.ascii")
+
+        old_pwd = os.getcwd()
+
+        try:
+            basename = os.path.basename(filename)
+            dirname  = os.path.dirname(filename)
+
+            if tmpdir is None:
+                tmpdir = f"tmpsnid_{self._snidid}"
+
+            if not os.path.isdir(tmpdir):
+                os.makedirs(tmpdir, exist_ok=True)
+
+            if in_tmpdir:
+                os.chdir(tmpdir)
+                self._tmpfile = f"snid_{self._snidid}_spectofit.ascii"
+            else:
+                self._tmpfile = os.path.join(tmpdir, f"snid_{self._snidid}_spectofit.ascii")
+
+            shutil.copy(filename, self._tmpfile)
+
+            tmpbase = os.path.basename(self._tmpfile).split(".")[0]
+            snid_cmd = self.build_snid_command(
+                self._tmpfile, param=paramfile, verbose=verbose, **kwargs
+            )
             
-        shutil.copy(filename, self._tmpfile)
+            self._result = run(
+                snid_cmd.split(),
+                stdout=PIPE,
+                stderr=PIPE,
+                universal_newlines=True
+            )
 
-        tmpbase = os.path.basename(self._tmpfile).split(".")[0]
+            if verbose:
+                print(f" running: {snid_cmd}")
+                print(self._result.stdout.split("\n"))
 
-        snid_cmd = self.build_snid_command(self._tmpfile, param=paramfile, verbose=verbose, **kwargs)
-        
-        self._result = run(snid_cmd.split(), stdout=PIPE, stderr=PIPE, universal_newlines=True)
-        if verbose:
-            print(f" running: {snid_cmd}")
-            print(self._result.stdout.split("\n"))
-        
-        if self._result.returncode != 0:
-            warnings.warn("SNID returncode is not 0, suggesting an error")
-        elif "orrelation function is all zero!" in self._result.stdout:
-            warnings.warn("SNID failed:  Searching all correlation peaks... PEAKFIT: Correlation function is all zero!")
-        elif "PEAKFIT: fit quits before half peak points!" in self._result.stdout:
-            warnings.warn("SNID failed:  Searching all correlation peaks... PEAKFIT: fit quits before half peak points!")
-        else:
+            if self._result.returncode != 0:
+                warnings.warn("SNID returncode is not 0, suggesting an error")
+                return None
+
+            if "correlation function is all zero!" in self._result.stdout:
+                warnings.warn("SNID failed: correlation function is all zero")
+                return None
+
+            if "PEAKFIT: fit quits before half peak points!" in self._result.stdout:
+                warnings.warn("SNID failed: PEAKFIT quits before half peak points")
+                return None
+
             datafile = f"{tmpbase}_snidflux.dat"
             modelfiles = glob(f"{tmpbase}_comp*_snidflux.dat")
             snidout = f"{tmpbase}_snid.output"
+
             try:
                 result = SNIDReader._read_snidoutput_(snidout)
             except FileNotFoundError:
-                print(" SNID RETURN CODE ".center(40,"-"))
+                print(" SNID RETURN CODE ".center(40, "-"))
                 print(self._result.stdout)
-                print("".center(40,"-"))
-                if cleanout: self._cleanup_run_(tmpdir, old_pwd=old_pwd)
+                print("".center(40, "-"))
                 return None
-                
+
             data = SNIDReader._read_snidflux_(datafile)
-            models = pandas.concat({int(f_.split("comp")[-1].split("_")[0]):SNIDReader._read_snidflux_(f_) 
-                                        for i,f_ in enumerate(modelfiles)})
-            
+            models = pandas.concat({
+                int(f_.split("comp")[-1].split("_")[0]):
+                SNIDReader._read_snidflux_(f_)
+                for f_ in modelfiles
+            })
+
             if fileout is None:
                 if dirout is None:
                     dirout = dirname
 
                 basename_noext, ext = os.path.splitext(basename)
-                fileout = os.path.join(dirout, basename_noext+"_snid.h5")
-                
+                fileout = os.path.join(dirout, basename_noext + "_snid.h5")
+
             elif not fileout.endswith("h5"):
-                fileout+=".h5"
-                
-            result.to_hdf(fileout, key="results", format='table')
-            data.to_hdf(fileout, key="data", format='table')
-            models.to_hdf(fileout, key="models", format='table')
-                
+                fileout += ".h5"
+
+            result.to_hdf(fileout, key="results", format="table")
+            data.to_hdf(fileout, key="data", format="table")
+            models.to_hdf(fileout, key="models", format="table")
+
             if not quiet:
-                print(f"snid run was successfull: data stored at {fileout}")
+                print(f"snid run was successful: data stored at {fileout}")
 
+            return fileout
+
+        finally:
             if cleanout:
-                _ = os.remove(snidout)
-                _ = os.remove(datafile)
-                _ = [os.remove(f_) for f_ in modelfiles]
-                
-        # - cleanup
-        if cleanout:
-            self._cleanup_run_(tmpdir,
-                                   old_pwd=old_pwd)
-
-        return fileout
+                self._cleanup_run_(tmpdir, old_pwd=old_pwd)
+            elif old_pwd is not None:
+                os.chdir(old_pwd)
 
     def _cleanup_run_(self, tmpdir, old_pwd=None):
-        """ """
-        os.remove("snid.param")
-        os.remove(self._tmpfile)
+        """Clean SNID temporary files safely."""
+
+        # First, always go back to the original directory
         if old_pwd is not None:
-            os.chdir(old_pwd)
-            
-        shutil.rmtree(tmpdir)
+            try:
+                os.chdir(old_pwd)
+            except Exception as e:
+                warnings.warn(f"Could not return to original directory {old_pwd}: {e}")
+
+        # Then remove the whole temporary directory
+        if tmpdir is not None and os.path.isdir(tmpdir):
+            try:
+                shutil.rmtree(tmpdir)
+            except Exception as e:
+                warnings.warn(f"Could not remove temporary directory {tmpdir}: {e}")
+
     # ============== #
     #  Internal      #
     # ============== #    
