@@ -619,9 +619,9 @@ class SNIDReader( object ):
     
     def show_bestmatches(self, nbest=None, ax=None, savefile=None, min_rlap=5, matchprop={}, **kwargs):
         """ """
-        best_matches = self.get_bestmatches(**{**dict(rlap_range=[min_rlap,None]), **matchprop},nfirst=nbest)
-        # if nbest is not None:
-        #     best_matches = best_matches.iloc[:nbest]
+        best_matches = self.get_bestmatches(**{**dict(rlap_range=[min_rlap,None]), **matchprop})
+        if nbest is not None:
+            best_matches = best_matches.iloc[:nbest]
         # Limit to those with models.
         best_matches = best_matches[best_matches["no."].astype("int")<self.nmodels]
         models = np.asarray(best_matches["no."], dtype="int")
